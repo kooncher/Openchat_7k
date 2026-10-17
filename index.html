@@ -10,7 +10,7 @@
 *{box-sizing:border-box}html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--text);font:15px/1.45 "Noto Sans Thai",system-ui,-apple-system,"Segoe UI",sans-serif}
 #app{height:100%;display:flex;flex-direction:column;max-width:720px;margin:0 auto;padding-top:env(safe-area-inset-top,0)}
-header{padding:12px 16px;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+header{padding:12px 16px;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;position:relative;z-index:12}
 header h1{font-size:17px;margin:0;flex:1}header small{color:var(--sub)}
 #feed{flex:1;overflow-y:auto;padding:14px 12px;display:flex;flex-direction:column;gap:10px}
 .msg{display:flex;flex-direction:column;max-width:82%}.msg.me{align-self:flex-end;align-items:flex-end}
@@ -42,18 +42,28 @@ textarea{flex:1;resize:none;max-height:120px;border:1px solid var(--line);border
 .err{color:#d33;font-size:13px;min-height:18px;margin-bottom:8px}
 .lnk{background:none;border:0;color:var(--sub);cursor:pointer;margin-top:12px;font:inherit;font-size:13px;width:100%}
 .mem{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);font-size:14px}.mem button{border:0;background:none;color:#d33;cursor:pointer}
+#sbar{display:flex;gap:6px;padding:6px 10px;background:var(--card);border-bottom:1px solid var(--line);align-items:center}
+#q{flex:1;min-width:0;border:1px solid var(--line);border-radius:18px;padding:7px 12px;background:var(--bg);color:var(--text);font:inherit;outline:none}
+#qn{font-size:12px;color:var(--sub);min-width:44px;text-align:center}
+.sb{border:1px solid var(--line);background:var(--bg);color:var(--text);width:30px;height:30px;border-radius:50%;cursor:pointer}
+.flash .bub{outline:3px solid #f5a623;outline-offset:1px}
+.aud{display:flex;flex-direction:column;gap:4px;min-width:210px}.aud audio{max-width:100%;height:36px}
+.tr{font-size:13px;opacity:.9}.spk{border:0;background:none;cursor:pointer;font-size:13px;opacity:.65;padding:0 4px}
+.rec{background:#d33!important;color:#fff!important;border-color:#d33!important}
 </style>
 </head>
 <body>
 <div id="app">
   <header><h1 id="ttl">💬 กลุ่มแชท</h1><small id="count"></small><button class="ib" id="admb" style="width:34px;height:34px;font-size:15px" title="ผู้ดูแล">⚙️</button></header>
+  <div id="sbar"><input id="q" placeholder="🔍 ค้นหาข้อความ / เสียง" autocomplete="off"><span id="qn"></span><button class="sb" id="qp" title="เก่ากว่า">▲</button><button class="sb" id="qd" title="ใหม่กว่า">▼</button></div>
   <div id="note"></div>
   <div id="feed"><div class="empty">กำลังโหลด…</div></div>
   <div id="composer">
     <div id="sug"></div>
-    <div id="preview"><img id="pimg" alt=""><button id="px">✕</button></div>
+    <div id="preview"><img id="pimg" alt=""><span id="pa"></span><button id="px">✕</button></div>
     <div class="row">
       <button class="ib" id="attach" title="แนบรูป">📷</button>
+      <button class="ib" id="mic" title="อัดเสียง">🎤</button>
       <button class="ib" id="atall" title="แท็กทุกคน">@</button>
       <textarea id="txt" rows="1" placeholder="พิมพ์ข้อความ… ใช้ @all เพื่อแท็กทุกคน"></textarea>
       <button class="ib" id="send">➤</button>
@@ -103,12 +113,16 @@ function render(){
   feed.textContent='';
   if(!msgs.length){var e=document.createElement('div');e.className='empty';e.textContent='ยังไม่มีข้อความ เริ่มคุยได้เลย 👋';feed.appendChild(e)}
   msgs.forEach(function(m){
-    var w=document.createElement('div');w.className='msg'+(mine(m)?' me':'')+(!mine(m)&&mentionsMe(m)?' hl':'');
+    var w=document.createElement('div');w.dataset.id=m.id;w.className='msg'+(mine(m)?' me':'')+(!mine(m)&&mentionsMe(m)?' hl':'');
     if(!mine(m)){var h=document.createElement('div');h.className='who';h.textContent=nm(m.member_id);w.appendChild(h)}
     var b=document.createElement('div');b.className='bub';
     if(safeImg(m.img)){var im=document.createElement('img');im.src=m.img;im.alt='รูปภาพ';im.onclick=function(){$('lb').firstChild.src=m.img;$('lb').style.display='flex'};b.appendChild(im)}
+    if(safeImg(m.audio)){var ad=document.createElement('div');ad.className='aud';var au=document.createElement('audio');au.controls=true;au.preload='none';au.src=m.audio;ad.appendChild(au);
+      if(m.transcript){var tr=document.createElement('div');tr.className='tr';tr.textContent='📝 '+m.transcript;ad.appendChild(tr)}b.appendChild(ad)}
     if(m.body){var t=document.createElement('span');renderText(t,m.body);b.appendChild(t)}
-    w.appendChild(b);var tm=document.createElement('div');tm.className='time';tm.textContent=fmt(m.created_at);w.appendChild(tm);feed.appendChild(w)});
+    w.appendChild(b);var tm=document.createElement('div');tm.className='time';tm.textContent=fmt(m.created_at);
+    if(m.body){var sp=document.createElement('button');sp.className='spk';sp.textContent='🔊';sp.title='อ่านออกเสียง';sp.onclick=function(){speak(speech(m))};tm.appendChild(sp)}
+    w.appendChild(tm);feed.appendChild(w)});
   $('count').textContent=Object.keys(byId).length+' สมาชิก';
   if(stick)feed.scrollTop=feed.scrollHeight;
 }
@@ -143,12 +157,13 @@ $('atall').onclick=function(){txt.value+=(txt.value&&!/\s$/.test(txt.value)?' ':
 // image
 $('attach').onclick=function(){$('file').click()};
 $('file').onchange=function(){var f=this.files[0];this.value='';if(!f)return;if(f.size>5*1024*1024){alert('รูปใหญ่เกิน 5MB');return}
-  file=f;$('pimg').src=URL.createObjectURL(f);$('preview').style.display='flex'};
-$('px').onclick=function(){file=null;$('preview').style.display='none'};
-  function setImg(f){
+  file=f;$('pimg').src=URL.createObjectURL(f);$('pimg').style.display='';$('preview').style.display='flex'};
+var aud=null;
+$('px').onclick=function(){file=null;aud=null;$('pa').textContent='';$('preview').style.display='none'};
+function setImg(f){
   if(!entered||!f||f.type.indexOf('image/')!==0)return;
   if(f.size>5*1024*1024){alert('รูปใหญ่เกิน 5MB');return}
-  file=f;$('pimg').src=URL.createObjectURL(f);$('preview').style.display='flex'}
+  file=f;$('pimg').src=URL.createObjectURL(f);$('pimg').style.display='';$('preview').style.display='flex'}
 document.addEventListener('paste',function(e){
   var it=(e.clipboardData&&e.clipboardData.items)||[];
   for(var i=0;i<it.length;i++){if(it[i].type.indexOf('image/')===0){e.preventDefault();setImg(it[i].getAsFile());return}}});
@@ -157,18 +172,72 @@ feed.addEventListener('drop',function(e){e.preventDefault();setImg(e.dataTransfe
 
 // send
 async function send(){
-  var text=txt.value.trim();if(!text&&!file)return;var sb_=$('send');sb_.disabled=true;
+  var text=txt.value.trim();if(!text&&!file&&!aud)return;var sb_=$('send');sb_.disabled=true;
   try{
-    var img=null;
+    var img=null,au=null,tr=null,secs=null;
     if(file){var ext=(file.type.split('/')[1]||'jpg').replace('jpeg','jpg'),path=me+'/'+Date.now()+'-'+Math.random().toString(36).slice(2,8)+'.'+ext;
       var up=await sb.storage.from('chat-images').upload(path,file,{contentType:file.type});if(up.error)throw up.error;
       img=sb.storage.from('chat-images').getPublicUrl(path).data.publicUrl}
+    if(aud){var ty=aud.blob.type||'audio/webm',ex=ty.indexOf('mp4')>-1?'m4a':ty.indexOf('ogg')>-1?'ogg':ty.indexOf('mpeg')>-1?'mp3':'webm',ap=me+'/'+Date.now()+'-'+Math.random().toString(36).slice(2,8)+'.'+ex;
+      var ua=await sb.storage.from('chat-images').upload(ap,aud.blob,{contentType:ty});if(ua.error)throw ua.error;
+      au=sb.storage.from('chat-images').getPublicUrl(ap).data.publicUrl;tr=aud.tr||null;secs=aud.secs}
     Object.keys(pending).sort(function(a,b){return b.length-a.length}).forEach(function(n){text=text.split('@'+n).join('{{u:'+pending[n]+'}}')});
-    var r=await sb.from('messages').insert({member_id:me,body:text||null,img:img});if(r.error)throw r.error;
-    txt.value='';txt.style.height='auto';pending={};file=null;$('preview').style.display='none';
+    var r=await sb.from('messages').insert({member_id:me,body:text||null,img:img,audio:au,transcript:tr,audio_secs:secs});if(r.error)throw r.error;
+    txt.value='';txt.style.height='auto';pending={};file=null;aud=null;$('pa').textContent='';$('preview').style.display='none';
   }catch(e){alert('ส่งไม่สำเร็จ: '+(e.message||e))}
   sb_.disabled=false}
 $('send').onclick=send;
+
+// voice record
+var rec=null,chunks=[],recStart=0,recTimer=null,sr=null,srText='',ph=txt.placeholder;
+function mmss(n){return Math.floor(n/60)+':'+String(n%60).padStart(2,'0')}
+async function startRec(){
+  if(!entered)return;
+  if(!navigator.mediaDevices||!window.MediaRecorder){alert('เบราว์เซอร์นี้ไม่รองรับการอัดเสียง');return}
+  var st;try{st=await navigator.mediaDevices.getUserMedia({audio:true})}catch(e){alert('ไม่ได้รับอนุญาตให้ใช้ไมโครโฟน');return}
+  chunks=[];srText='';
+  var mt=['audio/webm;codecs=opus','audio/webm','audio/mp4','audio/ogg'].find(function(t){return MediaRecorder.isTypeSupported(t)});
+  rec=new MediaRecorder(st,mt?{mimeType:mt}:{});
+  rec.ondataavailable=function(e){if(e.data&&e.data.size)chunks.push(e.data)};
+  rec.onstop=function(){
+    st.getTracks().forEach(function(t){t.stop()});clearInterval(recTimer);$('mic').classList.remove('rec');txt.placeholder=ph;
+    var secs=Math.max(1,Math.round((Date.now()-recStart)/1000)),type=(rec.mimeType||mt||'audio/webm').split(';')[0],blob=new Blob(chunks,{type:type});
+    if(blob.size>5*1024*1024){alert('เสียงยาวเกินไป (สูงสุดประมาณ 5MB)');return}
+    setTimeout(function(){var t=srText.trim();aud={blob:blob,secs:secs,tr:t};
+      $('pa').textContent='🎤 เสียง '+mmss(secs)+(t?' · '+t.slice(0,40):' · (ไม่มีข้อความถอดเสียง)');
+      $('pimg').style.display=file?'':'none';$('preview').style.display='flex'},900)};
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(SR){try{sr=new SR();sr.lang='th-TH';sr.continuous=true;sr.interimResults=false;
+    sr.onresult=function(e){for(var i=e.resultIndex;i<e.results.length;i++)if(e.results[i].isFinal)srText+=e.results[i][0].transcript+' '};
+    sr.onend=function(){if(sr&&rec&&rec.state==='recording'){try{sr.start()}catch(_){}}};sr.start()}catch(_){sr=null}}
+  rec.start();recStart=Date.now();$('mic').classList.add('rec');
+  recTimer=setInterval(function(){var s=Math.round((Date.now()-recStart)/1000);txt.placeholder='🔴 กำลังอัด '+mmss(s)+' — กดไมค์อีกครั้งเพื่อหยุด';if(s>=180)stopRec()},500)}
+function stopRec(){if(sr){var s=sr;sr=null;try{s.stop()}catch(_){}}if(rec&&rec.state!=='inactive')rec.stop()}
+$('mic').onclick=function(){if(rec&&rec.state==='recording')stopRec();else startRec()};
+
+// read aloud
+function speech(m){return (m.body||'').replace(/\{\{u:([^}]+)\}\}/g,function(a,id){return nm(id)}).replace(/@all/g,'ทุกคน')}
+function speak(t){
+  if(!window.speechSynthesis){alert('เบราว์เซอร์นี้ไม่รองรับการอ่านออกเสียง');return}
+  if(speechSynthesis.speaking){speechSynthesis.cancel();return}
+  var u=new SpeechSynthesisUtterance(t);u.lang='th-TH';speechSynthesis.speak(u)}
+
+// search
+var hits=[],hi=-1;
+function plain(m){return (speech(m)+' '+(m.transcript||'')+' '+nm(m.member_id)).toLowerCase()}
+function goHit(){
+  $('qn').textContent=hits.length?(hi+1)+'/'+hits.length:'ไม่พบ';if(hi<0)return;
+  var el=feed.querySelector('[data-id="'+hits[hi]+'"]');
+  if(el){el.scrollIntoView({block:'center',behavior:'smooth'});el.classList.add('flash');setTimeout(function(){el.classList.remove('flash')},1800)}}
+function doSearch(){
+  var q=$('q').value.trim().toLowerCase();hits=[];hi=-1;
+  if(!q){$('qn').textContent='';return}
+  msgs.forEach(function(m){if(plain(m).indexOf(q)>-1)hits.push(m.id)});
+  hi=hits.length-1;goHit()}
+function step(d){if(!hits.length)return;hi=(hi+d+hits.length)%hits.length;goHit()}
+$('q').addEventListener('input',doSearch);
+$('q').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();step(-1)}});
+$('qp').onclick=function(){step(-1)};$('qd').onclick=function(){step(1)};
 
 // data
 async function loadMembers(){var r=await sb.from('members').select('id,name');if(r.error)return;
