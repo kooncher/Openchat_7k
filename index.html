@@ -145,6 +145,15 @@ $('attach').onclick=function(){$('file').click()};
 $('file').onchange=function(){var f=this.files[0];this.value='';if(!f)return;if(f.size>5*1024*1024){alert('รูปใหญ่เกิน 5MB');return}
   file=f;$('pimg').src=URL.createObjectURL(f);$('preview').style.display='flex'};
 $('px').onclick=function(){file=null;$('preview').style.display='none'};
+  function setImg(f){
+  if(!entered||!f||f.type.indexOf('image/')!==0)return;
+  if(f.size>5*1024*1024){alert('รูปใหญ่เกิน 5MB');return}
+  file=f;$('pimg').src=URL.createObjectURL(f);$('preview').style.display='flex'}
+document.addEventListener('paste',function(e){
+  var it=(e.clipboardData&&e.clipboardData.items)||[];
+  for(var i=0;i<it.length;i++){if(it[i].type.indexOf('image/')===0){e.preventDefault();setImg(it[i].getAsFile());return}}});
+feed.addEventListener('dragover',function(e){e.preventDefault()});
+feed.addEventListener('drop',function(e){e.preventDefault();setImg(e.dataTransfer.files[0])});
 
 // send
 async function send(){
