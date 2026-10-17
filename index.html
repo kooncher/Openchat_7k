@@ -92,7 +92,7 @@ textarea{flex:1;resize:none;max-height:120px;border:1px solid var(--line);border
 </div>
 
 <div id="gate" class="ov"><div class="box"><h2>ยืนยันตัวตน</h2><p>กรอกชื่อในเกมของคุณให้ตรงกับรายชื่อกลุ่ม</p>
-  <input id="gn" placeholder="ชื่อในเกม" maxlength="40" autocomplete="off"><div class="err" id="ge"></div>
+  <input id="gn" placeholder="ชื่อในเกม" maxlength="40" autocomplete="off"><input id="gpin" type="password" inputmode="numeric" maxlength="6" placeholder="PIN ตัวเลข 4-6 หลัก" autocomplete="off"><p style="margin:-4px 0 10px;font-size:12px">เข้าครั้งแรก: ตั้ง PIN ของคุณเอง · เข้าจากเครื่องอื่น: ใส่ PIN เดิมเพื่อยืนยันตัวตน</p><div class="err" id="ge"></div>
   <button class="btn" id="gb">เข้าร่วมแชท</button></div></div>
 
 <div id="adm" class="ov"><div class="box">
@@ -102,7 +102,7 @@ textarea{flex:1;resize:none;max-height:120px;border:1px solid var(--line);border
     <h2 style="margin-top:18px;font-size:15px">คนที่เข้าร่วมแล้ว</h2><div id="ml"></div></div>
   <button class="btn g" id="ac">ปิด</button>
 </div></div>
-<div id="side"><div id="sh"><span id="st">สมาชิก</span><button id="sx">✕</button></div><div id="sl"></div></div>
+<div id="side"><div id="sh"><span id="st">สมาชิก</span><button id="sx">✕</button></div><div id="sl"></div><button class="btn g" id="setpin" style="margin:8px;width:auto">🔑 ตั้ง/เปลี่ยน PIN ของฉัน</button></div>
 <div id="lb"><img alt=""></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -223,6 +223,10 @@ function renderSide(){
     if(id===me){var y=document.createElement('small');y.textContent='คุณ';r.appendChild(y)}
     else r.onclick=function(){txt.value+=(txt.value&&!/\s$/.test(txt.value)?' ':'')+'@'+byId[id]+' ';pending[byId[id]]=id;txt.focus();if(innerWidth<1000)$('side').classList.remove('open')};
     l.appendChild(r)})}
+$('setpin').onclick=async function(){
+  var p=prompt('ตั้ง PIN ตัวเลข 4-6 หลัก\n(ใช้ยืนยันตัวตนเมื่อเข้าจากเครื่องอื่น)');if(p===null)return;p=p.trim();
+  if(!/^\d{4,6}$/.test(p)){alert('PIN ต้องเป็นตัวเลข 4-6 หลัก');return}
+  var r=await sb.rpc('set_pin',{p_pin:p});alert(r.error?r.error.message:'ตั้ง PIN เรียบร้อยแล้ว ✓')};
 $('mb').onclick=function(){$('side').classList.add('open')};
 $('sx').onclick=function(){$('side').classList.remove('open')};
 
@@ -324,9 +328,12 @@ async function enter(){
 
 // gate
 $('gb').onclick=async function(){var e=$('ge');e.textContent='';var n=$('gn').value.trim();if(!n){e.textContent='กรุณากรอกชื่อ';return}
-  this.disabled=true;var r=await sb.rpc('join_group',{p_name:n});this.disabled=false;
-  if(r.error){e.textContent=r.error.message;return}enter()};
+  var pin=$('gpin').value.trim();if(pin&&!/^\d{4,6}$/.test(pin)){e.textContent='PIN ต้องเป็นตัวเลข 4-6 หลัก';return}
+  this.disabled=true;var r=await sb.rpc('join_group',{p_name:n,p_pin:pin});this.disabled=false;
+  if(r.error){e.textContent=r.error.message;return}
+  if(typeof r.data==='string'&&r.data.indexOf('ERR:')===0){e.textContent=r.data.slice(4);return}enter()};
 $('gn').addEventListener('keydown',function(e){if(e.key==='Enter')$('gb').click()});
+$('gpin').addEventListener('keydown',function(e){if(e.key==='Enter')$('gb').click()});
 
 // admin
 $('admb').onclick=function(){$('adm').style.display='flex';$('apw').focus()};
