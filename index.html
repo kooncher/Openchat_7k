@@ -50,16 +50,26 @@ textarea{flex:1;resize:none;max-height:120px;border:1px solid var(--line);border
 .aud{display:flex;flex-direction:column;gap:4px;min-width:210px}.aud audio{max-width:100%;height:36px}
 .tr{font-size:13px;opacity:.9}.spk{border:0;background:none;cursor:pointer;font-size:13px;opacity:.65;padding:0 4px}
 .rec{background:#d33!important;color:#fff!important;border-color:#d33!important}
+#pin{display:none;background:var(--card);border-bottom:1px solid var(--line)}
+#pinh{padding:8px 14px;cursor:pointer;display:flex;gap:8px;align-items:center;font-size:13px}
+#pinh span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#pinh b{color:var(--tag)}
+#pinl{display:none;max-height:45vh;overflow-y:auto;padding:0 12px 10px}
+.pi{border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin-top:8px;background:var(--bg);white-space:pre-wrap;word-break:break-word}
+.pi img{max-width:100%;max-height:240px;border-radius:8px;display:block;margin:6px 0;cursor:zoom-in}
+.pi .ac{display:flex;gap:14px;margin-top:6px;font-size:13px}.pi .ac button{border:0;background:none;color:var(--tag);cursor:pointer;font:inherit;padding:0}
+#jump{display:none;position:absolute;right:12px;bottom:100%;margin-bottom:8px;background:var(--me);color:#fff;border:0;border-radius:18px;padding:7px 14px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.25);font:inherit;font-size:13px}
 </style>
 </head>
 <body>
 <div id="app">
   <header><h1 id="ttl">💬 กลุ่มแชท</h1><small id="count"></small><button class="ib" id="admb" style="width:34px;height:34px;font-size:15px" title="ผู้ดูแล">⚙️</button></header>
   <div id="sbar"><input id="q" placeholder="🔍 ค้นหาข้อความ / เสียง" autocomplete="off"><span id="qn"></span><button class="sb" id="qp" title="เก่ากว่า">▲</button><button class="sb" id="qd" title="ใหม่กว่า">▼</button></div>
+  <div id="pin"><div id="pinh"><span id="pint"></span><b id="pinc"></b><small>▾</small></div><div id="pinl"></div></div>
   <div id="note"></div>
   <div id="feed"><div class="empty">กำลังโหลด…</div></div>
   <div id="composer">
     <div id="sug"></div>
+    <button id="jump">⬇ ไปข้อความล่าสุด</button>
     <div id="preview"><img id="pimg" alt=""><span id="pa"></span><button id="px">✕</button></div>
     <div class="row">
       <button class="ib" id="attach" title="แนบรูป">📷</button>
@@ -91,7 +101,7 @@ textarea{flex:1;resize:none;max-height:120px;border:1px solid var(--line);border
 (function(){
 var $=function(i){return document.getElementById(i)};
 var sb=supabase.createClient(CFG.url,CFG.key);
-var me=null,byId={},msgs=[],pending={},file=null,sugList=[],sugIdx=0,lastSeen=Date.now(),entered=false,adminPw='';
+var me=null,byId={},msgs=[],pending={},file=null,sugList=[],sugIdx=0,lastSeen=Date.now(),entered=false,adminPw=sessionStorage.getItem('apw')||'',pins=[];
 var feed=$('feed'),txt=$('txt'),sug=$('sug');
 document.title=CFG.title||'กลุ่มแชท';$('ttl').textContent='💬 '+(CFG.title||'กลุ่มแชท');
 
@@ -122,8 +132,9 @@ function render(){
     if(m.body){var t=document.createElement('span');renderText(t,m.body);b.appendChild(t)}
     w.appendChild(b);var tm=document.createElement('div');tm.className='time';tm.textContent=fmt(m.created_at);
     if(m.body){var sp=document.createElement('button');sp.className='spk';sp.textContent='🔊';sp.title='อ่านออกเสียง';sp.onclick=function(){speak(speech(m))};tm.appendChild(sp)}
+    if(adminPw){var pb=document.createElement('button');pb.className='spk';pb.textContent=m.pinned_at?'📌✓':'📌';pb.title=m.pinned_at?'เลิกปักหมุด':'ปักหมุด';pb.onclick=function(){pinMsg(m,!m.pinned_at)};tm.appendChild(pb)}
     w.appendChild(tm);feed.appendChild(w)});
-  $('count').textContent=Object.keys(byId).length+' สมาชิก';
+  renderPins();$('count').textContent=Object.keys(byId).length+' สมาชิก';
   if(stick)feed.scrollTop=feed.scrollHeight;
 }
 function notify(){
@@ -131,7 +142,8 @@ function notify(){
   var bottom=feed.scrollHeight-feed.scrollTop-feed.clientHeight<120;
   if(c&&!bottom){n.style.display='block';n.textContent='🔔 มี '+c+' ข้อความที่แท็กคุณ (แตะเพื่อดู)'}else{n.style.display='none';if(bottom)lastSeen=Date.now()}}
 $('note').onclick=function(){feed.scrollTop=feed.scrollHeight;lastSeen=Date.now();$('note').style.display='none'};
-feed.onscroll=notify;$('lb').onclick=function(){this.style.display='none'};
+feed.onscroll=function(){notify();$('jump').style.display=feed.scrollHeight-feed.scrollTop-feed.clientHeight>200?'block':'none'};
+$('jump').onclick=function(){feed.scrollTo({top:feed.scrollHeight,behavior:'smooth'})};$('lb').onclick=function(){this.style.display='none'};
 
 // mentions
 function showSug(q){
@@ -187,6 +199,34 @@ async function send(){
   }catch(e){alert('ส่งไม่สำเร็จ: '+(e.message||e))}
   sb_.disabled=false}
 $('send').onclick=send;
+
+// pins
+async function loadPins(){var r=await sb.from('messages').select('*').not('pinned_at','is',null).order('pinned_at',{ascending:false}).limit(20);if(!r.error)pins=r.data||[]}
+async function pinMsg(m,on){
+  var r=await sb.rpc('admin_pin',{pw:adminPw,p_id:m.id,p_on:on});
+  if(r.error){alert(r.error.message);return}
+  m.pinned_at=on?new Date().toISOString():null;await loadPins();render()}
+function jumpTo(id){
+  var el=feed.querySelector('[data-id="'+id+'"]');
+  if(!el){alert('ข้อความนี้เก่าเกินกว่าที่โหลดไว้ในแชท');return}
+  el.scrollIntoView({block:'center',behavior:'smooth'});el.classList.add('flash');setTimeout(function(){el.classList.remove('flash')},1800)}
+function renderPins(){
+  var box=$('pin');if(!pins.length){box.style.display='none';return}
+  box.style.display='block';var t=pins[0];
+  $('pint').textContent='📌 '+(t.body?speech(t).slice(0,90):t.img?'📷 รูปภาพ':'🎤 ข้อความเสียง');
+  $('pinc').textContent=pins.length>1?'+'+(pins.length-1):'';
+  var l=$('pinl');l.textContent='';
+  pins.forEach(function(m){
+    var d=document.createElement('div');d.className='pi';
+    var h=document.createElement('b');h.textContent=nm(m.member_id);d.appendChild(h);d.appendChild(document.createElement('br'));
+    if(safeImg(m.img)){var im=document.createElement('img');im.src=m.img;im.alt='รูปภาพ';im.onclick=function(){$('lb').firstChild.src=m.img;$('lb').style.display='flex'};d.appendChild(im)}
+    if(m.body){var sp=document.createElement('span');renderText(sp,m.body);d.appendChild(sp)}
+    if(safeImg(m.audio)){var au=document.createElement('audio');au.controls=true;au.preload='none';au.src=m.audio;d.appendChild(au)}
+    var ac=document.createElement('div');ac.className='ac';
+    var g=document.createElement('button');g.textContent='ไปที่ข้อความ';g.onclick=function(){jumpTo(m.id)};ac.appendChild(g);
+    if(adminPw){var u=document.createElement('button');u.textContent='เลิกปักหมุด';u.onclick=function(){pinMsg(m,false)};ac.appendChild(u)}
+    d.appendChild(ac);l.appendChild(d)})}
+$('pinh').onclick=function(){var l=$('pinl');l.style.display=l.style.display==='block'?'none':'block'};
 
 // voice record
 var rec=null,chunks=[],recStart=0,recTimer=null,sr=null,srText='',ph=txt.placeholder;
@@ -246,10 +286,12 @@ async function loadMembers(){var r=await sb.from('members').select('id,name');if
 async function enter(){
   entered=true;$('gate').style.display='none';await loadMembers();
   var r=await sb.from('messages').select('*').order('created_at',{ascending:true}).limit(500);
-  msgs=r.data||[];render();feed.scrollTop=feed.scrollHeight;
+  msgs=r.data||[];await loadPins();render();feed.scrollTop=feed.scrollHeight;
   sb.channel('room')
    .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages'},function(p){
       if(!byId[p.new.member_id])loadMembers();msgs.push(p.new);render();notify()})
+   .on('postgres_changes',{event:'UPDATE',schema:'public',table:'messages'},function(p){
+      for(var i=0;i<msgs.length;i++)if(msgs[i].id===p.new.id)msgs[i]=p.new;loadPins().then(render)})
    .on('postgres_changes',{event:'*',schema:'public',table:'members'},loadMembers).subscribe()}
 
 // gate
@@ -263,13 +305,13 @@ $('admb').onclick=function(){$('adm').style.display='flex';$('apw').focus()};
 $('ac').onclick=function(){$('adm').style.display='none'};
 async function adminLoad(){
   var r=await sb.rpc('admin_get',{pw:adminPw});if(r.error){$('ae').textContent=r.error.message;return false}
-  $('a1').style.display='none';$('a2').style.display='block';$('rl').value=r.data.roster.join('\n');
+  $('a1').style.display='none';sessionStorage.setItem('apw',adminPw);render();$('a2').style.display='block';$('rl').value=r.data.roster.join('\n');
   var l=$('ml');l.textContent='';
   r.data.members.forEach(function(m){var d=document.createElement('div');d.className='mem';var s=document.createElement('span');s.textContent=m.name;d.appendChild(s);
     var x=document.createElement('button');x.textContent='ลบ';x.onclick=async function(){if(!confirm('ลบ '+m.name+' ออกจากกลุ่ม?'))return;
       var z=await sb.rpc('admin_remove_member',{pw:adminPw,p_id:m.id});if(z.error)alert(z.error.message);else adminLoad()};d.appendChild(x);l.appendChild(d)});
   return true}
-$('al').onclick=function(){adminPw=$('apw').value;adminLoad()};
+$('al').onclick=async function(){adminPw=$('apw').value;if(!(await adminLoad())){adminPw='';sessionStorage.removeItem('apw')}};
 $('apw').addEventListener('keydown',function(e){if(e.key==='Enter')$('al').click()});
 $('rs').onclick=async function(){var list=$('rl').value.split('\n').map(function(x){return x.trim()}).filter(Boolean);
   var r=await sb.rpc('admin_set_roster',{pw:adminPw,p_names:list});var b=$('rs');
