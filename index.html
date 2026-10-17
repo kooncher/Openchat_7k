@@ -58,11 +58,20 @@ textarea{flex:1;resize:none;max-height:120px;border:1px solid var(--line);border
 .pi img{max-width:100%;max-height:240px;border-radius:8px;display:block;margin:6px 0;cursor:zoom-in}
 .pi .ac{display:flex;gap:14px;margin-top:6px;font-size:13px}.pi .ac button{border:0;background:none;color:var(--tag);cursor:pointer;font:inherit;padding:0}
 #jump{display:none;position:absolute;right:12px;bottom:100%;margin-bottom:8px;background:var(--me);color:#fff;border:0;border-radius:18px;padding:7px 14px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.25);font:inherit;font-size:13px}
+#side{position:fixed;top:0;right:0;bottom:0;width:260px;max-width:85vw;background:var(--card);border-left:1px solid var(--line);z-index:14;display:none;flex-direction:column;padding-top:env(safe-area-inset-top,0);box-shadow:-4px 0 18px rgba(0,0,0,.15)}
+#side.open{display:flex}
+#sh{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px}#sh span{flex:1}#sh button{border:0;background:none;color:var(--text);font-size:18px;cursor:pointer}
+#sl{flex:1;overflow-y:auto;padding:6px 8px}
+.mi{display:flex;align-items:center;gap:10px;padding:8px;border-radius:10px;cursor:pointer}.mi:hover{background:var(--tagbg)}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--line);flex:none}.dot.on{background:var(--me)}
+.mi .n{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.mi small{color:var(--sub)}.mi.off .n{color:var(--sub)}
+#mb{display:none;width:34px;height:34px;font-size:15px}body.in #mb{display:inline-block}
+@media(min-width:1000px){body.in #side{display:flex;box-shadow:none}body.in{padding-right:260px}body.in #mb,#sx{display:none}}
 </style>
 </head>
 <body>
 <div id="app">
-  <header><h1 id="ttl">💬 กลุ่มแชท</h1><small id="count"></small><button class="ib" id="admb" style="width:34px;height:34px;font-size:15px" title="ผู้ดูแล">⚙️</button></header>
+  <header><h1 id="ttl">💬 กลุ่มแชท</h1><small id="count"></small><button class="ib" id="mb" title="รายชื่อสมาชิก">👥</button><button class="ib" id="admb" style="width:34px;height:34px;font-size:15px" title="ผู้ดูแล">⚙️</button></header>
   <div id="sbar"><input id="q" placeholder="🔍 ค้นหาข้อความ / เสียง" autocomplete="off"><span id="qn"></span><button class="sb" id="qp" title="เก่ากว่า">▲</button><button class="sb" id="qd" title="ใหม่กว่า">▼</button></div>
   <div id="pin"><div id="pinh"><span id="pint"></span><b id="pinc"></b><small>▾</small></div><div id="pinl"></div></div>
   <div id="note"></div>
@@ -93,6 +102,7 @@ textarea{flex:1;resize:none;max-height:120px;border:1px solid var(--line);border
     <h2 style="margin-top:18px;font-size:15px">คนที่เข้าร่วมแล้ว</h2><div id="ml"></div></div>
   <button class="btn g" id="ac">ปิด</button>
 </div></div>
+<div id="side"><div id="sh"><span id="st">สมาชิก</span><button id="sx">✕</button></div><div id="sl"></div></div>
 <div id="lb"><img alt=""></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -134,7 +144,7 @@ function render(){
     if(m.body){var sp=document.createElement('button');sp.className='spk';sp.textContent='🔊';sp.title='อ่านออกเสียง';sp.onclick=function(){speak(speech(m))};tm.appendChild(sp)}
     if(adminPw){var pb=document.createElement('button');pb.className='spk';pb.textContent=m.pinned_at?'📌✓':'📌';pb.title=m.pinned_at?'เลิกปักหมุด':'ปักหมุด';pb.onclick=function(){pinMsg(m,!m.pinned_at)};tm.appendChild(pb)}
     w.appendChild(tm);feed.appendChild(w)});
-  renderPins();$('count').textContent=Object.keys(byId).length+' สมาชิก';
+  renderPins();renderSide();$('count').textContent=Object.keys(byId).length+' สมาชิก';
   if(stick)feed.scrollTop=feed.scrollHeight;
 }
 function notify(){
@@ -199,6 +209,22 @@ async function send(){
   }catch(e){alert('ส่งไม่สำเร็จ: '+(e.message||e))}
   sb_.disabled=false}
 $('send').onclick=send;
+
+// members panel
+var online={};
+function renderSide(){
+  var ids=Object.keys(byId).sort(function(a,b){return (online[a]?0:1)-(online[b]?0:1)||byId[a].localeCompare(byId[b],'th')});
+  $('st').textContent='สมาชิก '+ids.length+' · ออนไลน์ '+ids.filter(function(i){return online[i]}).length;
+  var l=$('sl');l.textContent='';
+  ids.forEach(function(id){
+    var r=document.createElement('div');r.className='mi'+(online[id]?'':' off');
+    var d=document.createElement('span');d.className='dot'+(online[id]?' on':'');r.appendChild(d);
+    var n=document.createElement('span');n.className='n';n.textContent=byId[id];r.appendChild(n);
+    if(id===me){var y=document.createElement('small');y.textContent='คุณ';r.appendChild(y)}
+    else r.onclick=function(){txt.value+=(txt.value&&!/\s$/.test(txt.value)?' ':'')+'@'+byId[id]+' ';pending[byId[id]]=id;txt.focus();if(innerWidth<1000)$('side').classList.remove('open')};
+    l.appendChild(r)})}
+$('mb').onclick=function(){$('side').classList.add('open')};
+$('sx').onclick=function(){$('side').classList.remove('open')};
 
 // pins
 async function loadPins(){var r=await sb.from('messages').select('*').not('pinned_at','is',null).order('pinned_at',{ascending:false}).limit(20);if(!r.error)pins=r.data||[]}
@@ -284,15 +310,17 @@ async function loadMembers(){var r=await sb.from('members').select('id,name');if
   byId={};r.data.forEach(function(m){byId[m.id]=m.name});
   if(entered&&!byId[me]){location.reload();return}render()}
 async function enter(){
-  entered=true;$('gate').style.display='none';await loadMembers();
+  entered=true;document.body.classList.add('in');$('gate').style.display='none';await loadMembers();
   var r=await sb.from('messages').select('*').order('created_at',{ascending:true}).limit(500);
   msgs=r.data||[];await loadPins();render();feed.scrollTop=feed.scrollHeight;
-  sb.channel('room')
+  var ch=sb.channel('room',{config:{presence:{key:me}}})
    .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages'},function(p){
       if(!byId[p.new.member_id])loadMembers();msgs.push(p.new);render();notify()})
    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'messages'},function(p){
       for(var i=0;i<msgs.length;i++)if(msgs[i].id===p.new.id)msgs[i]=p.new;loadPins().then(render)})
-   .on('postgres_changes',{event:'*',schema:'public',table:'members'},loadMembers).subscribe()}
+   .on('postgres_changes',{event:'*',schema:'public',table:'members'},loadMembers)
+   .on('presence',{event:'sync'},function(){online={};var st=ch.presenceState();for(var k in st)online[k]=1;renderSide()})
+   .subscribe(function(s){if(s==='SUBSCRIBED')ch.track({t:Date.now()})})}
 
 // gate
 $('gb').onclick=async function(){var e=$('ge');e.textContent='';var n=$('gn').value.trim();if(!n){e.textContent='กรุณากรอกชื่อ';return}
