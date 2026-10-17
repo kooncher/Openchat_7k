@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>กลุ่มแชทเกม</title>
+<style>
+:root{--bg:#f4f6f5;--card:#fff;--text:#1c2421;--sub:#6b7772;--line:#e1e6e3;--me:#06c755;--other:#fff;--hl:#fff6d6;--tag:#0a7d3b;--tagbg:#dff5e6}
+@media (prefers-color-scheme:dark){:root{--bg:#121615;--card:#1b211f;--text:#e8eeeb;--sub:#8c9893;--line:#2a322f;--other:#242c29;--hl:#3a3418;--tag:#7be3a1;--tagbg:#1f3a2a}}
+*{box-sizing:border-box}html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font:15px/1.45 "Noto Sans Thai",system-ui,-apple-system,"Segoe UI",sans-serif}
+#app{height:100%;display:flex;flex-direction:column;max-width:720px;margin:0 auto;padding-top:env(safe-area-inset-top,0)}
+header{padding:12px 16px;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+header h1{font-size:17px;margin:0;flex:1}header small{color:var(--sub)}
+#feed{flex:1;overflow-y:auto;padding:14px 12px;display:flex;flex-direction:column;gap:10px}
+.msg{display:flex;flex-direction:column;max-width:82%}.msg.me{align-self:flex-end;align-items:flex-end}
+.who{font-size:12px;color:var(--sub);margin:0 6px 2px}
+.bub{padding:8px 12px;border-radius:16px;background:var(--other);border:1px solid var(--line);word-break:break-word;white-space:pre-wrap}
+.me .bub{background:var(--me);color:#fff;border-color:transparent}
+.msg.hl .bub{background:var(--hl);color:var(--text);border-color:#e6c200}
+.bub img{display:block;max-width:100%;max-height:300px;border-radius:10px;margin-bottom:6px;cursor:zoom-in}.bub img:last-child{margin-bottom:0}
+.tag{background:var(--tagbg);color:var(--tag);border-radius:6px;padding:0 4px;font-weight:600}.me .tag{background:rgba(255,255,255,.25);color:#fff}
+.time{font-size:11px;color:var(--sub);margin:2px 6px}.empty{margin:auto;color:var(--sub);text-align:center;padding:20px}
+#composer{background:var(--card);border-top:1px solid var(--line);padding:8px 10px calc(8px + env(safe-area-inset-bottom,0));position:relative}
+#preview{display:none;padding:0 4px 8px;align-items:center;gap:8px}#preview img{height:56px;border-radius:8px}
+#preview button{border:0;background:var(--line);color:var(--text);border-radius:50%;width:24px;height:24px;cursor:pointer}
+.row{display:flex;gap:8px;align-items:flex-end}
+textarea{flex:1;resize:none;max-height:120px;border:1px solid var(--line);border-radius:20px;padding:9px 14px;background:var(--bg);color:var(--text);font:inherit;outline:none}
+.ib{border:1px solid var(--line);background:var(--bg);color:var(--text);width:40px;height:40px;border-radius:50%;cursor:pointer;font-size:18px}
+#send{background:var(--me);color:#fff;border-color:var(--me)}button:disabled{opacity:.5;cursor:default}
+#sug{display:none;position:absolute;left:10px;right:10px;bottom:100%;background:var(--card);border:1px solid var(--line);border-radius:12px;max-height:220px;overflow-y:auto;box-shadow:0 -4px 16px rgba(0,0,0,.12)}
+#sug div{padding:10px 14px;cursor:pointer}#sug div.on,#sug div:hover{background:var(--tagbg)}#sug b{color:var(--tag)}
+#note{background:var(--hl);padding:6px 14px;font-size:13px;display:none;cursor:pointer}
+#lb{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:20}#lb img{max-width:96%;max-height:96%}
+.ov{position:fixed;inset:0;background:var(--bg);z-index:10;display:none;align-items:center;justify-content:center;padding:20px}
+#adm{background:rgba(0,0,0,.55);z-index:15}
+.box{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;width:100%;max-width:420px;max-height:92%;overflow-y:auto}
+.box h2{margin:0 0 6px;font-size:18px}.box p{color:var(--sub);margin:0 0 14px;font-size:13px}
+.box input,.box textarea.f{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--bg);color:var(--text);font:inherit;margin-bottom:10px}
+.box textarea.f{height:160px;resize:vertical}
+.btn{border:0;background:var(--me);color:#fff;border-radius:10px;padding:10px 16px;font:inherit;cursor:pointer;width:100%}.btn.g{background:var(--line);color:var(--text);margin-top:8px}
+.err{color:#d33;font-size:13px;min-height:18px;margin-bottom:8px}
+.lnk{background:none;border:0;color:var(--sub);cursor:pointer;margin-top:12px;font:inherit;font-size:13px;width:100%}
+.mem{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);font-size:14px}.mem button{border:0;background:none;color:#d33;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="app">
+  <header><h1 id="ttl">💬 กลุ่มแชท</h1><small id="count"></small><button class="ib" id="admb" style="width:34px;height:34px;font-size:15px" title="ผู้ดูแล">⚙️</button></header>
+  <div id="note"></div>
+  <div id="feed"><div class="empty">กำลังโหลด…</div></div>
+  <div id="composer">
+    <div id="sug"></div>
+    <div id="preview"><img id="pimg" alt=""><button id="px">✕</button></div>
+    <div class="row">
+      <button class="ib" id="attach" title="แนบรูป">📷</button>
+      <button class="ib" id="atall" title="แท็กทุกคน">@</button>
+      <textarea id="txt" rows="1" placeholder="พิมพ์ข้อความ… ใช้ @all เพื่อแท็กทุกคน"></textarea>
+      <button class="ib" id="send">➤</button>
+    </div>
+    <input type="file" id="file" accept="image/*" hidden>
+  </div>
+</div>
+
+<div id="gate" class="ov"><div class="box"><h2>ยืนยันตัวตน</h2><p>กรอกชื่อในเกมของคุณให้ตรงกับรายชื่อกลุ่ม</p>
+  <input id="gn" placeholder="ชื่อในเกม" maxlength="40" autocomplete="off"><div class="err" id="ge"></div>
+  <button class="btn" id="gb">เข้าร่วมแชท</button></div></div>
+
+<div id="adm" class="ov"><div class="box">
+  <div id="a1"><h2>ผู้ดูแล</h2><p>ใส่รหัสผู้ดูแล</p><input id="apw" type="password" placeholder="รหัสผู้ดูแล"><div class="err" id="ae"></div><button class="btn" id="al">เข้าสู่ระบบ</button></div>
+  <div id="a2" style="display:none"><h2>รายชื่อที่อนุญาต</h2><p>ชื่อในเกม บรรทัดละ 1 ชื่อ (ไม่สนตัวพิมพ์และช่องว่าง) อย่าลืมใส่ชื่อตัวเอง</p>
+    <textarea class="f" id="rl"></textarea><button class="btn" id="rs">บันทึกรายชื่อ</button>
+    <h2 style="margin-top:18px;font-size:15px">คนที่เข้าร่วมแล้ว</h2><div id="ml"></div></div>
+  <button class="btn g" id="ac">ปิด</button>
+</div></div>
+<div id="lb"><img alt=""></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script>
+(function(){
+var $=function(i){return document.getElementById(i)};
+var sb=supabase.createClient(CFG.url,CFG.key);
+var me=null,byId={},msgs=[],pending={},file=null,sugList=[],sugIdx=0,lastSeen=Date.now(),entered=false,adminPw='';
+var feed=$('feed'),txt=$('txt'),sug=$('sug');
+document.title=CFG.title||'กลุ่มแชท';$('ttl').textContent='💬 '+(CFG.title||'กลุ่มแชท');
+
+function nm(id){return byId[id]?byId[id]:'ผู้ใช้'}
+function fmt(t){var d=new Date(t),n=new Date(),hm=d.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});return d.toDateString()===n.toDateString()?hm:d.toLocaleDateString('th-TH',{day:'numeric',month:'short'})+' '+hm}
+function mine(m){return m.member_id===me}
+function mentionsMe(m){var t=m.body||'';return t.indexOf('@all')>-1||t.indexOf('{{u:'+me+'}}')>-1}
+function renderText(p,text){
+  String(text||'').split(/(@all|\{\{u:[^}]+\}\})/).forEach(function(s){
+    if(!s)return;var n;
+    if(s==='@all'){n=document.createElement('span');n.className='tag';n.textContent='@all'}
+    else if(s.indexOf('{{u:')===0){n=document.createElement('span');n.className='tag';n.textContent='@'+nm(s.slice(4,-2))}
+    else n=document.createTextNode(s);
+    p.appendChild(n)})}
+function safeImg(u){return typeof u==='string'&&u.indexOf(CFG.url+'/storage/')===0}
+
+function render(){
+  var stick=feed.scrollHeight-feed.scrollTop-feed.clientHeight<120;
+  feed.textContent='';
+  if(!msgs.length){var e=document.createElement('div');e.className='empty';e.textContent='ยังไม่มีข้อความ เริ่มคุยได้เลย 👋';feed.appendChild(e)}
+  msgs.forEach(function(m){
+    var w=document.createElement('div');w.className='msg'+(mine(m)?' me':'')+(!mine(m)&&mentionsMe(m)?' hl':'');
+    if(!mine(m)){var h=document.createElement('div');h.className='who';h.textContent=nm(m.member_id);w.appendChild(h)}
+    var b=document.createElement('div');b.className='bub';
+    if(safeImg(m.img)){var im=document.createElement('img');im.src=m.img;im.alt='รูปภาพ';im.onclick=function(){$('lb').firstChild.src=m.img;$('lb').style.display='flex'};b.appendChild(im)}
+    if(m.body){var t=document.createElement('span');renderText(t,m.body);b.appendChild(t)}
+    w.appendChild(b);var tm=document.createElement('div');tm.className='time';tm.textContent=fmt(m.created_at);w.appendChild(tm);feed.appendChild(w)});
+  $('count').textContent=Object.keys(byId).length+' สมาชิก';
+  if(stick)feed.scrollTop=feed.scrollHeight;
+}
+function notify(){
+  var c=msgs.filter(function(m){return !mine(m)&&new Date(m.created_at)>lastSeen&&mentionsMe(m)}).length,n=$('note');
+  var bottom=feed.scrollHeight-feed.scrollTop-feed.clientHeight<120;
+  if(c&&!bottom){n.style.display='block';n.textContent='🔔 มี '+c+' ข้อความที่แท็กคุณ (แตะเพื่อดู)'}else{n.style.display='none';if(bottom)lastSeen=Date.now()}}
+$('note').onclick=function(){feed.scrollTop=feed.scrollHeight;lastSeen=Date.now();$('note').style.display='none'};
+feed.onscroll=notify;$('lb').onclick=function(){this.style.display='none'};
+
+// mentions
+function showSug(q){
+  var l=[{id:'all',name:'all'}];Object.keys(byId).forEach(function(id){if(id!==me)l.push({id:id,name:byId[id]})});
+  q=q.toLowerCase();sugList=l.filter(function(x){return x.name.toLowerCase().indexOf(q)>-1});
+  if(!sugList.length){sug.style.display='none';return}
+  sugIdx=0;sug.textContent='';
+  sugList.forEach(function(x,i){var d=document.createElement('div');d.className=i?'':'on';var b=document.createElement('b');b.textContent='@'+x.name;d.appendChild(b);
+    if(x.id==='all')d.appendChild(document.createTextNode('  ทุกคนในกลุ่ม'));d.onmousedown=function(e){e.preventDefault();pick(x)};sug.appendChild(d)});
+  sug.style.display='block'}
+function pick(x){var p=txt.selectionStart,bf=txt.value.slice(0,p).replace(/@[^\s@]*$/,''),af=txt.value.slice(p),ins='@'+x.name+' ';
+  txt.value=bf+ins+af;if(x.id!=='all')pending[x.name]=x.id;var c=(bf+ins).length;txt.setSelectionRange(c,c);txt.focus();sug.style.display='none'}
+txt.addEventListener('input',function(){txt.style.height='auto';txt.style.height=Math.min(txt.scrollHeight,120)+'px';
+  var m=txt.value.slice(0,txt.selectionStart).match(/@([^\s@]*)$/);if(m)showSug(m[1]);else sug.style.display='none'});
+txt.addEventListener('keydown',function(e){
+  if(sug.style.display==='block'){
+    if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();sugIdx=(sugIdx+(e.key==='ArrowDown'?1:-1)+sugList.length)%sugList.length;[].forEach.call(sug.children,function(c,i){c.className=i===sugIdx?'on':''});return}
+    if(e.key==='Enter'||e.key==='Tab'){e.preventDefault();pick(sugList[sugIdx]);return}
+    if(e.key==='Escape'){sug.style.display='none';return}}
+  if(e.key==='Enter'&&!e.shiftKey&&!/Mobi|Android/i.test(navigator.userAgent)){e.preventDefault();send()}});
+$('atall').onclick=function(){txt.value+=(txt.value&&!/\s$/.test(txt.value)?' ':'')+'@all ';txt.focus()};
+
+// image
+$('attach').onclick=function(){$('file').click()};
+$('file').onchange=function(){var f=this.files[0];this.value='';if(!f)return;if(f.size>5*1024*1024){alert('รูปใหญ่เกิน 5MB');return}
+  file=f;$('pimg').src=URL.createObjectURL(f);$('preview').style.display='flex'};
+$('px').onclick=function(){file=null;$('preview').style.display='none'};
+
+// send
+async function send(){
+  var text=txt.value.trim();if(!text&&!file)return;var sb_=$('send');sb_.disabled=true;
+  try{
+    var img=null;
+    if(file){var ext=(file.type.split('/')[1]||'jpg').replace('jpeg','jpg'),path=me+'/'+Date.now()+'-'+Math.random().toString(36).slice(2,8)+'.'+ext;
+      var up=await sb.storage.from('chat-images').upload(path,file,{contentType:file.type});if(up.error)throw up.error;
+      img=sb.storage.from('chat-images').getPublicUrl(path).data.publicUrl}
+    Object.keys(pending).sort(function(a,b){return b.length-a.length}).forEach(function(n){text=text.split('@'+n).join('{{u:'+pending[n]+'}}')});
+    var r=await sb.from('messages').insert({member_id:me,body:text||null,img:img});if(r.error)throw r.error;
+    txt.value='';txt.style.height='auto';pending={};file=null;$('preview').style.display='none';
+  }catch(e){alert('ส่งไม่สำเร็จ: '+(e.message||e))}
+  sb_.disabled=false}
+$('send').onclick=send;
+
+// data
+async function loadMembers(){var r=await sb.from('members').select('id,name');if(r.error)return;
+  byId={};r.data.forEach(function(m){byId[m.id]=m.name});
+  if(entered&&!byId[me]){location.reload();return}render()}
+async function enter(){
+  entered=true;$('gate').style.display='none';await loadMembers();
+  var r=await sb.from('messages').select('*').order('created_at',{ascending:true}).limit(500);
+  msgs=r.data||[];render();feed.scrollTop=feed.scrollHeight;
+  sb.channel('room')
+   .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages'},function(p){
+      if(!byId[p.new.member_id])loadMembers();msgs.push(p.new);render();notify()})
+   .on('postgres_changes',{event:'*',schema:'public',table:'members'},loadMembers).subscribe()}
+
+// gate
+$('gb').onclick=async function(){var e=$('ge');e.textContent='';var n=$('gn').value.trim();if(!n){e.textContent='กรุณากรอกชื่อ';return}
+  this.disabled=true;var r=await sb.rpc('join_group',{p_name:n});this.disabled=false;
+  if(r.error){e.textContent=r.error.message;return}enter()};
+$('gn').addEventListener('keydown',function(e){if(e.key==='Enter')$('gb').click()});
+
+// admin
+$('admb').onclick=function(){$('adm').style.display='flex';$('apw').focus()};
+$('ac').onclick=function(){$('adm').style.display='none'};
+async function adminLoad(){
+  var r=await sb.rpc('admin_get',{pw:adminPw});if(r.error){$('ae').textContent=r.error.message;return false}
+  $('a1').style.display='none';$('a2').style.display='block';$('rl').value=r.data.roster.join('\n');
+  var l=$('ml');l.textContent='';
+  r.data.members.forEach(function(m){var d=document.createElement('div');d.className='mem';var s=document.createElement('span');s.textContent=m.name;d.appendChild(s);
+    var x=document.createElement('button');x.textContent='ลบ';x.onclick=async function(){if(!confirm('ลบ '+m.name+' ออกจากกลุ่ม?'))return;
+      var z=await sb.rpc('admin_remove_member',{pw:adminPw,p_id:m.id});if(z.error)alert(z.error.message);else adminLoad()};d.appendChild(x);l.appendChild(d)});
+  return true}
+$('al').onclick=function(){adminPw=$('apw').value;adminLoad()};
+$('apw').addEventListener('keydown',function(e){if(e.key==='Enter')$('al').click()});
+$('rs').onclick=async function(){var list=$('rl').value.split('\n').map(function(x){return x.trim()}).filter(Boolean);
+  var r=await sb.rpc('admin_set_roster',{pw:adminPw,p_names:list});var b=$('rs');
+  b.textContent=r.error?r.error.message:'บันทึกแล้ว ✓';setTimeout(function(){b.textContent='บันทึกรายชื่อ'},1800)};
+
+// boot
+(async function(){
+  try{
+    var s=(await sb.auth.getSession()).data.session;
+    if(!s){var a=await sb.auth.signInAnonymously();if(a.error){feed.innerHTML='<div class="empty">เข้าสู่ระบบไม่ได้: โปรดเปิด Anonymous sign-ins ใน Supabase<br>('+a.error.message+')</div>';return}s=a.data.session}
+    me=s.user.id;var r=await sb.from('members').select('id');
+    if(r.data&&r.data.some(function(m){return m.id===me}))enter();else{feed.innerHTML='';$('gate').style.display='flex'}
+  }catch(e){feed.innerHTML='<div class="empty">เกิดข้อผิดพลาด: '+(e.message||e)+'<br>ตรวจสอบ config.js</div>'}
+})();
+})();
+</script>
+</body>
+</html>
